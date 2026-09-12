@@ -1,0 +1,31 @@
+{
+  "component_id": "tape_remote_box_gateway",
+  "name": "TAPERC Public Gateway",
+  "category": "gateway_service",
+  "target_platform": "Linux VPS (systemd + Caddy 2)",
+  "runtime": "Python 3.10+ (aiohttp)",
+  "latest_version": "v1.0.0",
+  "releases": [
+    {
+      "version": "v1.0.0",
+      "release_date": "2026-09-12",
+      "status": "stable",
+      "path": "releases/v1.0.0",
+      "entry_point": "src/server.py",
+      "systemd_service": "systemd/taperc-gateway.service",
+      "caddy_template": "caddy/Caddyfile.example",
+      "description": "Asynchrone cloud/VPS WebSocket gateway voor veilige internetbediening van Pico Relay Boxen zonder poortforwarding.",
+      "changelog": [
+        "Cryptografische HMAC-SHA256 challenge-response handshake met single-use nonces",
+        "Strikt gescheiden secrets store (geen plaintext secrets in device registry)",
+        "Fase-1 backward compatibility default-device REST routes (/api/v1/relay/...)",
+        "Realtime WebSocket endpoints wss://taperc.aaiq.nl/device/connect en /client/connect",
+        "Automatische heartbeat monitoring, timeout disconnect handling en command correlatie"
+      ],
+      "compatibility": {
+        "min_firmware_version": "v0.4.24",
+        "python_version": ">=3.10"
+      }
+    }
+  ]
+}

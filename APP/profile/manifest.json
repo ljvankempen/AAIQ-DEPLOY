@@ -1,0 +1,22 @@
+{
+  "component_id": "app_profile",
+  "name": "AAIQ APP Profile Specifications",
+  "category": "application_profile",
+  "target_platform": "AAIQ Studio / Cloud Configuration",
+  "latest_version": "v0.1.0",
+  "releases": [
+    {
+      "version": "v0.1.0",
+      "release_date": "2026-09-12",
+      "status": "draft",
+      "path": "releases/v0.1.0",
+      "description": "Initial baseline specificatie voor AAIQ apparaat- en machineprofielen.",
+      "changelog": [
+        "Initi\u00eble profielstructuur ingericht voor toekomstige AAIQ Studio orchestratie"
+      ],
+      "compatibility": {
+        "studio_version": ">=1.0.0"
+      }
+    }
+  ]
+}

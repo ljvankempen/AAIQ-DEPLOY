@@ -1,0 +1,49 @@
+# ==============================================================================
+# Caddy 2 Reverse Proxy Configuration for TAPERC Public Gateway
+# Domain: taperc.aaiq.nl
+# Upstream: 127.0.0.1:8080 (Local TAPERC service running as user 'aaiq')
+# ==============================================================================
+
+taperc.aaiq.nl {
+    # Automatic TLS with modern cipher suites and HTTP/2 + HTTP/3 support
+    tls admin@aaiq.nl {
+        protocols tls1.2 tls1.3
+    }
+
+    # Security Headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+
+    # Reverse proxy all HTTP REST and WebSocket requests (/device/connect, /client/connect)
+    reverse_proxy 127.0.0.1:8080 {
+        # Immediate streaming with zero buffer delay for real-time relay control
+        flush_interval -1
+
+        # Transparently pass client identity to upstream
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+
+        # Upstream health check
+        health_uri /health
+        health_interval 10s
+        health_timeout 2s
+        health_status 200
+    }
+
+    # Access and Error Logging
+    log {
+        output file /var/log/caddy/taperc.aaiq.nl.log {
+            roll_size 10MiB
+            roll_keep 10
+            roll_keep_for 30d
+        }
+        format json
+    }
+}

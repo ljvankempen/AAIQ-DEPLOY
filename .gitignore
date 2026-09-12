@@ -1,0 +1,22 @@
+# Python & Bytecode
+__pycache__/
+*.py[cod]
+*.class
+*.so
+
+# Environments & Testing
+.env
+.venv/
+env/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS / Editor Artifacts
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo

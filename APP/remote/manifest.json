@@ -1,0 +1,22 @@
+{
+  "component_id": "app_remote",
+  "name": "AAIQ APP Remote Screens",
+  "category": "remote_interface",
+  "target_platform": "AAIQ Studio / Remote Client",
+  "latest_version": "v0.1.0",
+  "releases": [
+    {
+      "version": "v0.1.0",
+      "release_date": "2026-09-12",
+      "status": "draft",
+      "path": "releases/v0.1.0",
+      "description": "Initial baseline specificatie voor dynamische AAIQ remote controller schermen.",
+      "changelog": [
+        "Initi\u00eble Remote Screen lay-outstructuur ingericht voor toekomstige AAIQ Studio distributie"
+      ],
+      "compatibility": {
+        "studio_version": ">=1.0.0"
+      }
+    }
+  ]
+}

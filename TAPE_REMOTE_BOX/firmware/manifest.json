@@ -1,0 +1,34 @@
+{
+  "component_id": "tape_remote_box_firmware",
+  "name": "AAIQ TAPE Remote Box Firmware",
+  "category": "hardware_firmware",
+  "target_platform": "Raspberry Pi Pico 2 W (RP2350)",
+  "runtime": "MicroPython 1.29.0",
+  "latest_version": "v0.4.24",
+  "releases": [
+    {
+      "version": "v0.4.24",
+      "release_date": "2026-09-12",
+      "status": "stable",
+      "path": "releases/v0.4.24",
+      "entry_point": "src/main.py",
+      "config_template": "config.json",
+      "description": "MicroPython firmware voor AAIQ Relay Box Pico 2 W met 8 relais (transport & power), non-blocking HTTP server, captive portal setup en REST API v1.",
+      "changelog": [
+        "Volledige RP2350 GPIO pin mapping voor Revox PR99 en B77",
+        "Non-blocking async HTTP REST API v1 endpoints (/api/v1/relay/...)",
+        "Mechanische transport interlock en power-off beveiliging",
+        "Captive portal Wi-Fi provisioning met hardware-bound AES-128 encryptie",
+        "Embedded PWA op /remote en status testcenter op /diagnose"
+      ],
+      "compatibility": {
+        "hardware": [
+          "Raspberry Pi Pico 2 W",
+          "RP2350"
+        ],
+        "min_gateway_version": "v1.0.0",
+        "api_version": "v1"
+      }
+    }
+  ]
+}
