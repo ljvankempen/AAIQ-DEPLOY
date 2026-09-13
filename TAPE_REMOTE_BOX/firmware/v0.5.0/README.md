@@ -1,6 +1,6 @@
 # TAPE Relay Box Firmware Release v0.5.0
 
-- **Release Datum**: 2026-09-13 10:22:36
+- **Release Datum**: 2026-09-13 12:57:36
 - **Component**: TAPE Relay Box MicroPython Firmware
 - **Platform**: Raspberry Pi Pico 2 W (RP2350)
 - **Runtime**: MicroPython 1.29.0
