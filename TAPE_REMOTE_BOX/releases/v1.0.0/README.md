@@ -1,6 +1,6 @@
 # TAPERC Complete Release v1.0.0
 
-**Datum & Tijd**: 2026-09-13 19:17:45
+**Datum & Tijd**: 2026-09-13 20:03:17
 **Gekoppelde Productie-componenten**:
 - **Firmware**: `v0.5.0` (`TAPE_REMOTE_BOX/firmware/v0.5.0`)
 - **Gateway**: `v1.0.0` (`TAPE_REMOTE_BOX/gateway/v1.0.0`)
@@ -14,4 +14,4 @@ Dit complete releasepakket bundelt uitsluitend de drie officiële TAPERC runtime
 
 | Bestand | Grootte (bytes) | SHA-256 Checksum |
 |---|---|---|
-| `release.json` | 1045 | `0bef23855cd2827fc1b147fbec6d26de8f5053701ac51f221b4d73e5810060e5` |
+| `release.json` | 1045 | `1068de80d283bd7869631416bb3e8395256e4a9d7ca9a5eac568b8d77c377f6a` |
