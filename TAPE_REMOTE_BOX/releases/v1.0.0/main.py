@@ -2,7 +2,7 @@
 # AAIQ RELAY BOX PICO 2 W
 # -----------------------------------------------------------------------------
 # File        : main.py
-# Version     : 0.5.10
+# Version     : 0.5.11
 # Platform    : Raspberry Pi Pico 2 W / RP2350
 # Firmware    : MicroPython 1.29.0
 # Project     : AAIQ RELAY BOX PICO
@@ -66,7 +66,7 @@ if not hasattr(time, "ticks_diff"):
 if not hasattr(time, "sleep_ms"):
     time.sleep_ms = lambda ms: time.sleep(ms / 1000.0)
 
-FIRMWARE_VERSION = "0.5.10"
+FIRMWARE_VERSION = "0.5.11"
 API_VERSION = "v1"
 CONFIG_FILE = "config.json"
 CONFIG_VERSION = 2
@@ -1219,7 +1219,10 @@ def ota_download_and_verify(download_url, expected_sha256=None, expected_size=No
                     os.remove(OTA_DOWNLOAD_FILE)
                 except Exception:
                     pass
-                return False, "SHA256_MISMATCH"
+                return False, (
+                    "SHA256_MISMATCH\nExpected SHA-256: %s\nCalculated SHA-256: %s\n"
+                    "Download file: %s\nFile size: %d bytes"
+                ) % (expected_sha, computed_sha, OTA_DOWNLOAD_FILE, total_bytes)
 
         # Content validation
         with open(OTA_DOWNLOAD_FILE, "r") as f:
@@ -1697,7 +1700,7 @@ PWA_MANIFEST = {
     ]
 }
 
-SW_JS = """const CACHE_NAME = 'tape-remote-v0.5.10';
+SW_JS = """const CACHE_NAME = 'tape-remote-v0.5.11';
 const STATIC_ASSETS = ['/', '/remote', '/manifest.json', '/icon.svg', '/icon-192.png', '/logo.png'];
 
 self.addEventListener('install', (e) => {
