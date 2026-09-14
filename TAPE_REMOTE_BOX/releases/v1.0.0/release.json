@@ -1,6 +1,10 @@
 {
+  "version": "v0.5.8",
+  "filename": "main.py",
+  "sha256": "b19e777663cb15731bf19a8f09b761dd5fbdd7a8040cea53e0453c88731a96cf",
+  "size_bytes": 128310,
   "taperc_release_version": "v1.0.0",
-  "release_date": "2026-09-14 14:47:53",
+  "release_date": "2026-09-14 15:33:32",
   "created_by": "AAIQ Studio Release Orchestrator",
   "components": {
     "firmware": {
@@ -8,7 +12,9 @@
       "target_type": "TAPE_RELAY_BOX_FIRMWARE",
       "version": "v0.5.8",
       "relative_path": "TAPE_REMOTE_BOX/firmware/v0.5.8",
-      "runtime_target": "Raspberry Pi Pico 2 W (RP2350)"
+      "runtime_target": "Raspberry Pi Pico 2 W (RP2350)",
+      "sha256": "b19e777663cb15731bf19a8f09b761dd5fbdd7a8040cea53e0453c88731a96cf",
+      "size_bytes": 128310
     },
     "gateway": {
       "name": "TAPERC Gateway",
