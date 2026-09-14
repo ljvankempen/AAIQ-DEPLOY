@@ -1,27 +1,27 @@
 {
   "taperc_release_version": "v1.0.0",
-  "release_date": "2026-09-14 00:46:23",
+  "release_date": "2026-09-14 14:25:17",
   "created_by": "AAIQ Studio Release Orchestrator",
   "components": {
     "firmware": {
       "name": "TAPE Relay Box Firmware",
       "target_type": "TAPE_RELAY_BOX_FIRMWARE",
-      "version": "v0.5.3",
-      "relative_path": "TAPE_REMOTE_BOX/firmware/v0.5.3",
+      "version": "v0.5.7",
+      "relative_path": "TAPE_REMOTE_BOX/firmware/v0.5.7",
       "runtime_target": "Raspberry Pi Pico 2 W (RP2350)"
     },
     "gateway": {
       "name": "TAPERC Gateway",
       "target_type": "TAPERC_GATEWAY",
-      "version": "v1.0.1",
-      "relative_path": "TAPE_REMOTE_BOX/gateway/v1.0.1",
+      "version": "v1.0.2",
+      "relative_path": "TAPE_REMOTE_BOX/gateway/v1.0.2",
       "runtime_target": "Linux VPS (aiohttp / Caddy reverse proxy)"
     },
     "pwa": {
       "name": "TAPE Remote PWA",
       "target_type": "TAPE_REMOTE_PWA",
-      "version": "v1.0.1",
-      "relative_path": "TAPE_REMOTE_BOX/pwa/v1.0.1",
+      "version": "v1.0.2",
+      "relative_path": "TAPE_REMOTE_BOX/pwa/v1.0.2",
       "runtime_target": "Browser / Mobile Single Page Application (static)"
     }
   },
