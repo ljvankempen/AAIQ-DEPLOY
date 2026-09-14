@@ -2,7 +2,7 @@
 # AAIQ RELAY BOX PICO 2 W
 # -----------------------------------------------------------------------------
 # File        : main.py
-# Version     : 0.5.12
+# Version     : 0.5.13
 # Platform    : Raspberry Pi Pico 2 W / RP2350
 # Firmware    : MicroPython 1.29.0
 # Project     : AAIQ RELAY BOX PICO
@@ -66,7 +66,7 @@ if not hasattr(time, "ticks_diff"):
 if not hasattr(time, "sleep_ms"):
     time.sleep_ms = lambda ms: time.sleep(ms / 1000.0)
 
-FIRMWARE_VERSION = "0.5.12"
+FIRMWARE_VERSION = "0.5.13"
 API_VERSION = "v1"
 CONFIG_FILE = "config.json"
 CONFIG_VERSION = 2
@@ -1700,7 +1700,7 @@ PWA_MANIFEST = {
     ]
 }
 
-SW_JS = """const CACHE_NAME = 'tape-remote-v0.5.12';
+SW_JS = """const CACHE_NAME = 'tape-remote-v0.5.13';
 const STATIC_ASSETS = ['/', '/remote', '/manifest.json', '/icon.svg', '/icon-192.png', '/logo.png'];
 
 self.addEventListener('install', (e) => {
