@@ -3,8 +3,11 @@ TAPERC Public Gateway — HTTP & WebSocket Route Handlers
 Implements REST API endpoints, Phase-1 default device routes, and real-time WebSocket protocol handling.
 """
 
+import hashlib
 import json
 import logging
+from pathlib import Path
+import re
 import uuid
 from typing import Any, Dict, Optional
 
@@ -17,6 +20,9 @@ from .protocol import (
     ACTION_ALL_OFF,
     ACTION_GET_INFO,
     ACTION_GET_STATUS,
+    ACTION_OTA_CHECK,
+    ACTION_OTA_INSTALL,
+    ACTION_OTA_STATUS,
     ACTION_PULSE,
     ACTION_RELAY,
     MSG_AUTH,
@@ -54,6 +60,10 @@ class GatewayRoutes:
         self.config = config
         self.auth = auth_manager
         self.cm = connection_manager
+        if self.config.server.static_dir:
+            self.static_dir = Path(self.config.server.static_dir).resolve()
+        else:
+            self.static_dir = (Path(__file__).resolve().parents[1] / "static").resolve()
 
     def setup_routes(self, app: web.Application) -> None:
         # Health & Info
@@ -79,9 +89,32 @@ class GatewayRoutes:
         app.router.add_post("/api/v1/device/{device_id}/pulse/{relay_id}", self.handle_post_pulse)
         app.router.add_post("/api/v1/device/{device_id}/all/off", self.handle_post_all_off)
 
+        # OTA Firmware Update Endpoints
+        app.router.add_get("/api/v1/ota/release", self.handle_ota_release)
+        app.router.add_get("/api/v1/ota/firmware/latest", self.handle_ota_release)
+        app.router.add_get("/api/v1/ota/download/{filename:.+}", self.handle_ota_download)
+        app.router.add_get("/api/v1/ota/download", self.handle_ota_download_default)
+        app.router.add_get("/api/v1/ota/status", self.handle_default_ota_status)
+        app.router.add_post("/api/v1/ota/check", self.handle_default_ota_check)
+        app.router.add_post("/api/v1/ota/install", self.handle_default_ota_install)
+        app.router.add_get("/api/v1/device/{device_id}/ota/status", self.handle_device_ota_status)
+        app.router.add_post("/api/v1/device/{device_id}/ota/check", self.handle_device_ota_check)
+        app.router.add_post("/api/v1/device/{device_id}/ota/install", self.handle_device_ota_install)
+
         # WebSockets
         app.router.add_get(self.config.server.device_ws_path, self.handle_device_ws)
         app.router.add_get(self.config.server.client_ws_path, self.handle_client_ws)
+
+        # PWA & Static Assets
+        app.router.add_get("/", self.handle_pwa_index)
+        app.router.add_get("/remote", self.handle_pwa_remote)
+        app.router.add_get("/index.html", self.handle_pwa_index)
+        app.router.add_get("/manifest.json", self.handle_pwa_manifest)
+        app.router.add_get("/sw.js", self.handle_pwa_service_worker)
+        app.router.add_get("/css/{filename:.+}", self.handle_pwa_css)
+        app.router.add_get("/js/{filename:.+}", self.handle_pwa_js)
+        app.router.add_get("/images/{filename:.+}", self.handle_pwa_images)
+        app.router.add_get("/static/{filename:.+}", self.handle_pwa_static_fallback)
 
     def _extract_client_auth(self, request: web.Request) -> Optional[ClientConfig]:
         """Extracts and validates client credentials from headers or query params."""
@@ -424,6 +457,258 @@ class GatewayRoutes:
             return web.json_response({"error": str(e)}, status=500)
 
     # --------------------------------------------------------------------------
+    # OTA Firmware Release & Update Endpoints
+    # --------------------------------------------------------------------------
+
+    def _get_releases_dir(self) -> Path:
+        if self.config.server.releases_dir:
+            return Path(self.config.server.releases_dir).resolve()
+
+        candidates = [
+            self.static_dir.parent / "releases" / "firmware",
+            self.static_dir / "firmware",
+            self.static_dir.parent / "releases",
+            Path(__file__).resolve().parents[3] / "src",
+            self.static_dir.parent / "src",
+        ]
+        for c in candidates:
+            if c.exists() and c.is_dir():
+                return c.resolve()
+        return (self.static_dir / "firmware").resolve()
+
+    def _get_latest_firmware_info(self) -> Optional[Dict[str, Any]]:
+        rel_dir = self._get_releases_dir()
+
+        manifest_paths = [
+            rel_dir / "release.json",
+            rel_dir / "latest.json",
+            self.static_dir / "release.json",
+            self.static_dir / "latest.json",
+        ]
+        for mp in manifest_paths:
+            if mp.exists() and mp.is_file():
+                try:
+                    with open(mp, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    if isinstance(data, dict) and "version" in data:
+                        target_file = rel_dir / data.get("filename", "main.py")
+                        if target_file.exists() and target_file.is_file():
+                            if "sha256" not in data or not data["sha256"]:
+                                file_bytes = target_file.read_bytes()
+                                data["sha256"] = hashlib.sha256(file_bytes).hexdigest()
+                                data["size_bytes"] = len(file_bytes)
+                        if "url" not in data or not data["url"]:
+                            filename = data.get("filename", "main.py")
+                            data["url"] = f"{self.config.server.public_url.rstrip('/')}/api/v1/ota/download/{filename}"
+                        data["success"] = True
+                        return data
+                except Exception as e:
+                    logger.warning("Failed to parse release manifest %s: %s", mp, e)
+
+        fw_file = None
+        for candidate_file in [
+            rel_dir / "main.py",
+            Path(__file__).resolve().parents[3] / "src" / "main.py",
+            self.static_dir.parent / "src" / "main.py",
+        ]:
+            if candidate_file.exists() and candidate_file.is_file():
+                fw_file = candidate_file
+                break
+
+        if fw_file:
+            try:
+                content = fw_file.read_bytes()
+                sha256_hash = hashlib.sha256(content).hexdigest()
+                size_bytes = len(content)
+
+                version = "0.5.1"
+                try:
+                    text = content.decode("utf-8")
+                    m = re.search(r'FIRMWARE_VERSION\s*=\s*"([^"]+)"', text)
+                    if m:
+                        version = m.group(1)
+                except Exception:
+                    pass
+
+                return {
+                    "success": True,
+                    "version": version,
+                    "min_version": "0.1.0",
+                    "filename": fw_file.name,
+                    "url": f"{self.config.server.public_url.rstrip('/')}/api/v1/ota/download/{fw_file.name}",
+                    "sha256": sha256_hash,
+                    "size_bytes": size_bytes,
+                    "release_date": "2026-09-13",
+                    "changelog": "AAIQ Relay Box Pico 2 W Firmware Release",
+                }
+            except Exception as e:
+                logger.warning("Failed to inspect firmware file %s: %s", fw_file, e)
+
+        return None
+
+    async def handle_ota_release(self, request: web.Request) -> web.Response:
+        info = self._get_latest_firmware_info()
+        if not info:
+            return web.json_response({"success": False, "error": "NO_RELEASE_AVAILABLE"}, status=404)
+        return web.json_response(info)
+
+    async def handle_ota_download_default(self, request: web.Request) -> web.Response:
+        return await self._serve_ota_file("main.py")
+
+    async def handle_ota_download(self, request: web.Request) -> web.Response:
+        filename = request.match_info.get("filename", "main.py")
+        return await self._serve_ota_file(filename)
+
+    async def _serve_ota_file(self, filename: str) -> web.Response:
+        if not filename or ".." in filename or "/" in filename or "\\" in filename:
+            return web.json_response({"error": "Invalid filename"}, status=400)
+
+        rel_dir = self._get_releases_dir()
+        candidate_files = [
+            rel_dir / filename,
+            self.static_dir / "firmware" / filename,
+            Path(__file__).resolve().parents[3] / "src" / filename,
+            self.static_dir.parent / "src" / filename,
+        ]
+        target_path = None
+        for cp in candidate_files:
+            if cp.exists() and cp.is_file():
+                target_path = cp.resolve()
+                break
+
+        if not target_path or not target_path.exists():
+            return web.json_response({"error": "Firmware file not found"}, status=404)
+
+        try:
+            data = target_path.read_bytes()
+            sha256_hash = hashlib.sha256(data).hexdigest()
+            headers = {
+                "Content-Type": "text/x-python; charset=utf-8",
+                "Content-Length": str(len(data)),
+                "ETag": f'"{sha256_hash}"',
+                "X-Checksum-SHA256": sha256_hash,
+                "Cache-Control": "public, max-age=300",
+                "Content-Disposition": f'attachment; filename="{target_path.name}"',
+            }
+            return web.Response(body=data, headers=headers)
+        except Exception as e:
+            logger.error("Error serving OTA file %s: %s", target_path, e)
+            return web.json_response({"error": "Failed to read firmware file"}, status=500)
+
+    async def handle_default_ota_status(self, request: web.Request) -> web.Response:
+        default_dev = self._resolve_default_device_id()
+        if not default_dev:
+            rel_info = self._get_latest_firmware_info()
+            return web.json_response({
+                "success": True,
+                "device_online": False,
+                "release": rel_info,
+                "status": "idle",
+            })
+        dev_session = self.cm.get_device_session(default_dev)
+        if not dev_session:
+            rel_info = self._get_latest_firmware_info()
+            return web.json_response({
+                "success": True,
+                "device_id": default_dev,
+                "device_online": False,
+                "release": rel_info,
+                "status": "offline",
+            })
+        try:
+            res = await self.cm.send_command_to_device(default_dev, action=ACTION_OTA_STATUS, timeout=3.0)
+            return web.json_response(res)
+        except Exception:
+            rel_info = self._get_latest_firmware_info()
+            return web.json_response({
+                "success": True,
+                "device_id": default_dev,
+                "device_online": True,
+                "release": rel_info,
+                "status": "idle",
+            })
+
+    async def handle_default_ota_check(self, request: web.Request) -> web.Response:
+        default_dev = self._resolve_default_device_id()
+        if not default_dev:
+            return web.json_response({"success": False, "error": "No default device configured or online"}, status=503)
+        return await self._execute_ota_check(request, default_dev)
+
+    async def handle_default_ota_install(self, request: web.Request) -> web.Response:
+        default_dev = self._resolve_default_device_id()
+        if not default_dev:
+            return web.json_response({"success": False, "error": "No default device configured or online"}, status=503)
+        return await self._execute_ota_install(request, default_dev)
+
+    async def handle_device_ota_status(self, request: web.Request) -> web.Response:
+        device_id = request.match_info.get("device_id", "")
+        client = self._extract_client_auth(request)
+        if not client:
+            return web.json_response({"error": "Unauthorized"}, status=401)
+        if not self.auth.is_client_authorized_for_device(client, device_id):
+            return web.json_response({"error": "Forbidden: Not authorized for this device"}, status=403)
+        dev_session = self.cm.get_device_session(device_id)
+        if not dev_session:
+            rel_info = self._get_latest_firmware_info()
+            return web.json_response({
+                "success": True,
+                "device_id": device_id,
+                "device_online": False,
+                "release": rel_info,
+                "status": "offline",
+            })
+        try:
+            res = await self.cm.send_command_to_device(device_id, action=ACTION_OTA_STATUS, timeout=3.0)
+            return web.json_response(res)
+        except Exception:
+            rel_info = self._get_latest_firmware_info()
+            return web.json_response({
+                "success": True,
+                "device_id": device_id,
+                "device_online": True,
+                "release": rel_info,
+                "status": "idle",
+            })
+
+    async def handle_device_ota_check(self, request: web.Request) -> web.Response:
+        device_id = request.match_info.get("device_id", "")
+        return await self._execute_ota_check(request, device_id)
+
+    async def handle_device_ota_install(self, request: web.Request) -> web.Response:
+        device_id = request.match_info.get("device_id", "")
+        return await self._execute_ota_install(request, device_id)
+
+    async def _execute_ota_check(self, request: web.Request, device_id: str) -> web.Response:
+        client = self._extract_client_auth(request)
+        if not client:
+            return web.json_response({"error": "Unauthorized"}, status=401)
+        if not self.auth.is_client_authorized_for_device(client, device_id):
+            return web.json_response({"error": "Forbidden"}, status=403)
+        dev_session = self.cm.get_device_session(device_id)
+        if not dev_session:
+            return web.json_response({"success": False, "error": f"Device '{device_id}' is offline"}, status=503)
+        try:
+            res = await self.cm.send_command_to_device(device_id, action=ACTION_OTA_CHECK, timeout=5.0)
+            return web.json_response(res)
+        except Exception as e:
+            return web.json_response({"success": False, "error": str(e)}, status=500)
+
+    async def _execute_ota_install(self, request: web.Request, device_id: str) -> web.Response:
+        client = self._extract_client_auth(request)
+        if not client:
+            return web.json_response({"error": "Unauthorized"}, status=401)
+        if not self.auth.is_client_authorized_for_device(client, device_id):
+            return web.json_response({"error": "Forbidden"}, status=403)
+        dev_session = self.cm.get_device_session(device_id)
+        if not dev_session:
+            return web.json_response({"success": False, "error": f"Device '{device_id}' is offline"}, status=503)
+        try:
+            res = await self.cm.send_command_to_device(device_id, action=ACTION_OTA_INSTALL, timeout=10.0)
+            return web.json_response(res)
+        except Exception as e:
+            return web.json_response({"success": False, "error": str(e)}, status=500)
+
+    # --------------------------------------------------------------------------
     # WebSocket: /device/connect (wss://taperc.aaiq.nl/device/connect)
     # --------------------------------------------------------------------------
 
@@ -637,3 +922,91 @@ class GatewayRoutes:
             await self.cm.unregister_client(session_id)
 
         return ws
+
+    # --------------------------------------------------------------------------
+    # PWA & Static File Serving
+    # --------------------------------------------------------------------------
+
+    def _serve_file_safely(
+        self,
+        target_path: Path,
+        content_type: Optional[str] = None,
+        extra_headers: Optional[Dict[str, str]] = None,
+    ) -> web.StreamResponse:
+        """Helper to securely serve a static file within the static directory."""
+        try:
+            resolved = target_path.resolve()
+            # Security check: ensure path is inside self.static_dir
+            if not resolved.is_relative_to(self.static_dir.resolve()):
+                raise web.HTTPForbidden(text="403: Forbidden")
+            if not resolved.exists() or not resolved.is_file():
+                raise web.HTTPNotFound(text="404: Not Found")
+        except (web.HTTPForbidden, web.HTTPNotFound):
+            raise
+        except Exception as e:
+            logger.warning("Error resolving static file %s: %s", target_path, e)
+            raise web.HTTPNotFound(text="404: Not Found")
+
+        headers = dict(extra_headers or {})
+        if content_type:
+            headers["Content-Type"] = content_type
+
+        return web.FileResponse(resolved, headers=headers)
+
+    async def handle_pwa_index(self, request: web.Request) -> web.StreamResponse:
+        """Serves PWA index.html for root GET / and /index.html."""
+        return self._serve_file_safely(
+            self.static_dir / "index.html",
+            content_type="text/html; charset=utf-8",
+        )
+
+    async def handle_pwa_remote(self, request: web.Request) -> web.StreamResponse:
+        """Serves PWA index.html for SPA route GET /remote."""
+        return self._serve_file_safely(
+            self.static_dir / "index.html",
+            content_type="text/html; charset=utf-8",
+        )
+
+    async def handle_pwa_manifest(self, request: web.Request) -> web.StreamResponse:
+        """Serves PWA manifest.json."""
+        return self._serve_file_safely(
+            self.static_dir / "manifest.json",
+            content_type="application/manifest+json; charset=utf-8",
+        )
+
+    async def handle_pwa_service_worker(self, request: web.Request) -> web.StreamResponse:
+        """Serves PWA Service Worker sw.js with appropriate scope and caching headers."""
+        return self._serve_file_safely(
+            self.static_dir / "sw.js",
+            content_type="application/javascript; charset=utf-8",
+            extra_headers={
+                "Service-Worker-Allowed": "/",
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+            },
+        )
+
+    async def handle_pwa_css(self, request: web.Request) -> web.StreamResponse:
+        """Serves CSS assets from static/css/."""
+        filename = request.match_info.get("filename", "")
+        return self._serve_file_safely(
+            self.static_dir / "css" / filename,
+            content_type="text/css; charset=utf-8",
+        )
+
+    async def handle_pwa_js(self, request: web.Request) -> web.StreamResponse:
+        """Serves JS assets from static/js/."""
+        filename = request.match_info.get("filename", "")
+        return self._serve_file_safely(
+            self.static_dir / "js" / filename,
+            content_type="application/javascript; charset=utf-8",
+        )
+
+    async def handle_pwa_images(self, request: web.Request) -> web.StreamResponse:
+        """Serves image assets from static/images/."""
+        filename = request.match_info.get("filename", "")
+        return self._serve_file_safely(self.static_dir / "images" / filename)
+
+    async def handle_pwa_static_fallback(self, request: web.Request) -> web.StreamResponse:
+        """Fallback for any static file under /static/*."""
+        filename = request.match_info.get("filename", "")
+        return self._serve_file_safely(self.static_dir / filename)

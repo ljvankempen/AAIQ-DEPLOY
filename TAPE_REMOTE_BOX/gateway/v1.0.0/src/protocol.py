@@ -30,6 +30,9 @@ ACTION_PULSE = "pulse"
 ACTION_ALL_OFF = "all_off"
 ACTION_GET_STATUS = "get_status"
 ACTION_GET_INFO = "get_info"
+ACTION_OTA_CHECK = "ota_check"
+ACTION_OTA_STATUS = "ota_status"
+ACTION_OTA_INSTALL = "ota_install"
 
 VALID_ACTIONS = {
     ACTION_RELAY,
@@ -37,6 +40,9 @@ VALID_ACTIONS = {
     ACTION_ALL_OFF,
     ACTION_GET_STATUS,
     ACTION_GET_INFO,
+    ACTION_OTA_CHECK,
+    ACTION_OTA_STATUS,
+    ACTION_OTA_INSTALL,
 }
 
 

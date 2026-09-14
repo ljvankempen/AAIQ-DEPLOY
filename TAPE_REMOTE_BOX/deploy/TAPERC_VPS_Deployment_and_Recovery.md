@@ -344,8 +344,8 @@ Preferred sequence:
 3. Preserve production config/secrets
 4. Ensure ownership = aaiq:aaiq
 5. Update/recreate .venv only when required
-6. Install requirements as aaiq
-7. Run tests
+6. Install requirements as aaiq (with --no-cache-dir)
+7. Validate production runtime (bytecode compile & import checks as aaiq)
 8. Validate configuration
 9. Restart gateway
 10. Check systemd status
@@ -353,7 +353,7 @@ Preferred sequence:
 12. Check public API
 ```
 
-The deployment should fail safely when tests or configuration validation fail.
+The deployment should fail safely when runtime or configuration validation fails.
 
 ## 15. Recovery procedure
 

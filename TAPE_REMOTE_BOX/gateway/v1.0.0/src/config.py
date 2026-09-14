@@ -20,6 +20,8 @@ class ServerConfig:
     heartbeat_interval_sec: int = 15
     heartbeat_timeout_sec: int = 45
     log_level: str = "INFO"
+    static_dir: Optional[str] = None
+    releases_dir: Optional[str] = None
 
 
 @dataclass
@@ -70,6 +72,8 @@ class GatewayConfig:
             heartbeat_interval_sec=int(server_data.get("heartbeat_interval_sec", 15)),
             heartbeat_timeout_sec=int(server_data.get("heartbeat_timeout_sec", 45)),
             log_level=server_data.get("log_level", "INFO"),
+            static_dir=server_data.get("static_dir", data.get("static_dir")),
+            releases_dir=server_data.get("releases_dir", data.get("releases_dir")),
         )
 
         security_data = data.get("security", {})
@@ -149,6 +153,10 @@ class GatewayConfig:
                 pass
         if os.getenv("TAPERC_LOG_LEVEL"):
             self.server.log_level = os.getenv("TAPERC_LOG_LEVEL")
+        if os.getenv("TAPERC_STATIC_DIR"):
+            self.server.static_dir = os.getenv("TAPERC_STATIC_DIR")
+        if os.getenv("TAPERC_RELEASES_DIR"):
+            self.server.releases_dir = os.getenv("TAPERC_RELEASES_DIR")
 
         # Load secrets from secrets file if specified and exists
         if self.security.secrets_file and os.path.exists(self.security.secrets_file):

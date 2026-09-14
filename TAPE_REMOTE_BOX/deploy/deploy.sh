@@ -19,8 +19,12 @@ SYSTEMD_UNIT_PATH="/etc/systemd/system/${SYSTEMD_SERVICE_NAME}"
 CADDYFILE_PATH="/etc/caddy/Caddyfile"
 LOCAL_HEALTH_URL="http://127.0.0.1:8080/health"
 LOCAL_INFO_URL="http://127.0.0.1:8080/api/v1/info"
+LOCAL_PWA_URL="http://127.0.0.1:8080/remote"
+LOCAL_MANIFEST_URL="http://127.0.0.1:8080/manifest.json"
+LOCAL_SW_URL="http://127.0.0.1:8080/sw.js"
 PUBLIC_HEALTH_URL="https://taperc.aaiq.nl/health"
 PUBLIC_INFO_URL="https://taperc.aaiq.nl/api/v1/info"
+PUBLIC_PWA_URL="https://taperc.aaiq.nl/remote"
 
 # Colors for terminal output
 RED='\033[0;31m'
@@ -79,7 +83,9 @@ ensure_directories() {
     mkdir -p "${TARGET_APP_DIR}/systemd"
     mkdir -p "${TARGET_APP_DIR}/caddy"
     mkdir -p "${TARGET_APP_DIR}/deploy"
-    mkdir -p "${TARGET_APP_DIR}/tests"
+    mkdir -p "${TARGET_APP_DIR}/static"
+    mkdir -p "${TARGET_APP_DIR}/releases/firmware"
+    mkdir -p "${TARGET_APP_DIR}/static/firmware"
     mkdir -p "${BACKUP_DIR}"
     mkdir -p /var/log/caddy
 
@@ -116,14 +122,17 @@ create_backup() {
 deploy_source_files() {
     log_info "Deploying application source files from ${SOURCE_ROOT}..."
 
-    # Deploy python source code
-    if [[ -d "${SOURCE_ROOT}/src" ]]; then
+    # Check if sources are nested under gateway/ (in AAIQ-DEPLOY structure)
+    if [[ ! -d "${SOURCE_ROOT}/src" && -d "${SOURCE_ROOT}/gateway" ]]; then
+        local latest_gw_dir
+        latest_gw_dir="$(find "${SOURCE_ROOT}/gateway" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort -V | tail -n 1 || true)"
+        if [[ -n "${latest_gw_dir}" && -d "${latest_gw_dir}/src" ]]; then
+            log_info "Dynamically detected Gateway release directory: ${latest_gw_dir}"
+            cp -r "${latest_gw_dir}/src/"* "${TARGET_APP_DIR}/src/"
+        fi
+    elif [[ -d "${SOURCE_ROOT}/src" ]]; then
+        # Deploy direct python source code
         cp -r "${SOURCE_ROOT}/src/"* "${TARGET_APP_DIR}/src/"
-    fi
-
-    # Deploy tests
-    if [[ -d "${SOURCE_ROOT}/tests" ]]; then
-        cp -r "${SOURCE_ROOT}/tests/"* "${TARGET_APP_DIR}/tests/"
     fi
 
     # Deploy systemd, caddy, deploy descriptors & docs
@@ -136,6 +145,44 @@ deploy_source_files() {
     if [[ -d "${SOURCE_ROOT}/deploy" ]]; then
         cp -r "${SOURCE_ROOT}/deploy/"* "${TARGET_APP_DIR}/deploy/"
         chmod +x "${TARGET_APP_DIR}/deploy/"*.sh 2>/dev/null || true
+    fi
+
+    # Deploy static assets (PWA) dynamically
+    local pwa_src_dir=""
+    if [[ -d "${SOURCE_ROOT}/pwa" ]]; then
+        # Discover the latest release version under pwa/
+        local latest_pwa_dir
+        latest_pwa_dir="$(find "${SOURCE_ROOT}/pwa" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort -V | tail -n 1 || true)"
+        if [[ -n "${latest_pwa_dir}" && -d "${latest_pwa_dir}" ]]; then
+            pwa_src_dir="${latest_pwa_dir}"
+            log_info "Dynamically detected PWA release directory: ${latest_pwa_dir}"
+        fi
+    fi
+
+    if [[ -z "${pwa_src_dir}" && -d "${SOURCE_ROOT}/static" ]]; then
+        pwa_src_dir="${SOURCE_ROOT}/static"
+    fi
+
+    if [[ -n "${pwa_src_dir}" && -d "${pwa_src_dir}" ]]; then
+        log_info "Deploying PWA static assets from ${pwa_src_dir} to ${TARGET_APP_DIR}/static/..."
+        mkdir -p "${TARGET_APP_DIR}/static"
+        cp -r "${pwa_src_dir}/"* "${TARGET_APP_DIR}/static/"
+        chown -R "${RUNTIME_USER}:${RUNTIME_GROUP}" "${TARGET_APP_DIR}/static" 2>/dev/null || true
+    fi
+
+    # Deploy firmware OTA releases dynamically
+    if [[ -d "${SOURCE_ROOT}/releases" ]]; then
+        log_info "Deploying firmware releases from ${SOURCE_ROOT}/releases to ${TARGET_APP_DIR}/releases/..."
+        mkdir -p "${TARGET_APP_DIR}/releases"
+        cp -r "${SOURCE_ROOT}/releases/"* "${TARGET_APP_DIR}/releases/"
+        chown -R "${RUNTIME_USER}:${RUNTIME_GROUP}" "${TARGET_APP_DIR}/releases" 2>/dev/null || true
+    fi
+
+    # Deploy static firmware OTA assets if present
+    if [[ -d "${SOURCE_ROOT}/static/firmware" ]]; then
+        mkdir -p "${TARGET_APP_DIR}/static/firmware"
+        cp -r "${SOURCE_ROOT}/static/firmware/"* "${TARGET_APP_DIR}/static/firmware/"
+        chown -R "${RUNTIME_USER}:${RUNTIME_GROUP}" "${TARGET_APP_DIR}/static/firmware" 2>/dev/null || true
     fi
 
     [[ -f "${SOURCE_ROOT}/requirements.txt" ]] && cp "${SOURCE_ROOT}/requirements.txt" "${TARGET_APP_DIR}/"
@@ -202,21 +249,50 @@ setup_python_venv() {
 
     if [[ ! -d "${TARGET_APP_DIR}/.venv" ]]; then
         log_info "Creating new virtual environment as user ${RUNTIME_USER}..."
-        sudo -u "${RUNTIME_USER}" python3 -m venv "${TARGET_APP_DIR}/.venv"
+        (cd "${TARGET_APP_DIR}" && sudo -H -u "${RUNTIME_USER}" HOME="${TARGET_BASE_DIR}" python3 -m venv "${TARGET_APP_DIR}/.venv")
     fi
 
     log_info "Upgrading pip and installing dependencies..."
-    sudo -u "${RUNTIME_USER}" "${TARGET_APP_DIR}/.venv/bin/pip" install --upgrade pip setuptools wheel --quiet
+    (cd "${TARGET_APP_DIR}" && sudo -H -u "${RUNTIME_USER}" HOME="${TARGET_BASE_DIR}" "${TARGET_APP_DIR}/.venv/bin/pip" install --upgrade pip setuptools wheel --no-cache-dir --quiet)
     if [[ -f "${TARGET_APP_DIR}/requirements.txt" ]]; then
-        sudo -u "${RUNTIME_USER}" "${TARGET_APP_DIR}/.venv/bin/pip" install -r "${TARGET_APP_DIR}/requirements.txt" --quiet
+        (cd "${TARGET_APP_DIR}" && sudo -H -u "${RUNTIME_USER}" HOME="${TARGET_BASE_DIR}" "${TARGET_APP_DIR}/.venv/bin/pip" install -r "${TARGET_APP_DIR}/requirements.txt" --no-cache-dir --quiet)
         log_success "Dependencies installed successfully."
     fi
 }
 
+validate_production_runtime() {
+    log_info "Validating production Python runtime and syntax under user ${RUNTIME_USER}..."
+    
+    if [[ ! -f "${TARGET_APP_DIR}/.venv/bin/python3" ]]; then
+        log_error "Python binary not found at ${TARGET_APP_DIR}/.venv/bin/python3"
+        return 1
+    fi
+
+    # 1. Byte-compile production sources to ensure syntax integrity
+    if [[ -d "${TARGET_APP_DIR}/src" ]]; then
+        log_info "Compiling Python source files in ${TARGET_APP_DIR}/src..."
+        if ! (cd "${TARGET_APP_DIR}" && sudo -H -u "${RUNTIME_USER}" HOME="${TARGET_BASE_DIR}" "${TARGET_APP_DIR}/.venv/bin/python3" -m compileall -q "${TARGET_APP_DIR}/src"); then
+            log_error "Python bytecode compilation failed in ${TARGET_APP_DIR}/src!"
+            return 1
+        fi
+        log_success "Bytecode compilation check passed."
+    fi
+
+    # 2. Verify runtime dependencies and module imports in production context
+    log_info "Verifying core TAPERC runtime imports under user ${RUNTIME_USER}..."
+    if ! (cd "${TARGET_APP_DIR}" && sudo -H -u "${RUNTIME_USER}" HOME="${TARGET_BASE_DIR}" PYTHONPATH="${TARGET_APP_DIR}" "${TARGET_APP_DIR}/.venv/bin/python3" -c "import aiohttp, ssl, json, pathlib; from src import config, routes, server; print('✓ TAPERC runtime import verification successful')"); then
+        log_error "TAPERC runtime module import verification failed under user ${RUNTIME_USER}!"
+        return 1
+    fi
+
+    log_success "Production runtime validation passed successfully."
+    return 0
+}
+
 run_tests() {
-    log_info "Running test suite inside virtual environment..."
+    log_info "Running development test suite inside virtual environment (if present)..."
     if [[ -d "${TARGET_APP_DIR}/tests" ]] && [[ -f "${TARGET_APP_DIR}/.venv/bin/pytest" ]]; then
-        if sudo -u "${RUNTIME_USER}" PYTHONPATH="${TARGET_APP_DIR}" "${TARGET_APP_DIR}/.venv/bin/pytest" "${TARGET_APP_DIR}/tests" -q; then
+        if (cd "${TARGET_APP_DIR}" && sudo -H -u "${RUNTIME_USER}" HOME="${TARGET_BASE_DIR}" PYTHONPATH="${TARGET_APP_DIR}" "${TARGET_APP_DIR}/.venv/bin/pytest" "${TARGET_APP_DIR}/tests" -o cache_dir=/tmp/.pytest_cache -q); then
             log_success "All tests passed successfully."
             return 0
         else
@@ -224,7 +300,7 @@ run_tests() {
             return 1
         fi
     else
-        log_warn "Pytest not found in virtual environment. Skipping test execution."
+        log_info "Pytest or tests directory not present in production environment. Skipping test execution."
         return 0
     fi
 }
@@ -302,6 +378,28 @@ check_local_health() {
             if [[ -n "${info_json}" ]]; then
                 log_info "Local Gateway Info: ${info_json}"
             fi
+
+            # Verify PWA local endpoints if static files were deployed
+            if [[ -d "${TARGET_APP_DIR}/static" && -f "${TARGET_APP_DIR}/static/index.html" ]]; then
+                if curl -s -f -m 5 "${LOCAL_PWA_URL}" >/dev/null 2>&1; then
+                    log_success "Local PWA SPA route (${LOCAL_PWA_URL}) PASSED (HTTP 200)."
+                else
+                    log_warn "Local PWA SPA route (${LOCAL_PWA_URL}) did not return HTTP 200."
+                fi
+                if curl -s -f -m 5 "${LOCAL_MANIFEST_URL}" >/dev/null 2>&1; then
+                    log_success "Local PWA manifest (${LOCAL_MANIFEST_URL}) PASSED (HTTP 200)."
+                fi
+                if curl -s -f -m 5 "${LOCAL_SW_URL}" >/dev/null 2>&1; then
+                    log_success "Local PWA Service Worker (${LOCAL_SW_URL}) PASSED (HTTP 200)."
+                fi
+            fi
+
+            # Verify OTA firmware release endpoint if firmware files were deployed
+            if [[ -d "${TARGET_APP_DIR}/releases" || -d "${TARGET_APP_DIR}/static/firmware" ]]; then
+                if curl -s -f -m 5 "http://127.0.0.1:8080/api/v1/ota/release" >/dev/null 2>&1; then
+                    log_success "Local OTA firmware release endpoint (http://127.0.0.1:8080/api/v1/ota/release) PASSED (HTTP 200)."
+                fi
+            fi
             return 0
         fi
         log_warn "Local health check attempt ${i}/${retries} failed. Retrying in ${wait_sec}s..."
@@ -334,7 +432,7 @@ do_rollback() {
 
     if [[ -z "${backup_archive}" ]]; then
         # Find latest backup
-        backup_archive="$(ls -t "${BACKUP_DIR}"/taperc-backup-*.tar.gz 2>/dev/null | head -n 1 || true)"
+        backup_archive="$(ls -t "${BACKUP_DIR}"/*.tar.gz 2>/dev/null | head -n 1 || true)"
     fi
 
     if [[ -z "${backup_archive}" ]] || [[ ! -f "${backup_archive}" ]]; then
@@ -375,6 +473,7 @@ do_rollback() {
 
 cmd_install() {
     check_root
+    cd "${TARGET_BASE_DIR}" || true
     log_info "Starting TAPERC Public Gateway initial installation..."
 
     ensure_runtime_user
@@ -382,7 +481,7 @@ cmd_install() {
     deploy_source_files
     preserve_or_init_configs
     setup_python_venv
-    run_tests
+    validate_production_runtime
     install_systemd_service
     restart_service
     validate_caddy
@@ -398,6 +497,7 @@ cmd_install() {
 
 cmd_update() {
     check_root
+    cd "${TARGET_BASE_DIR}" || true
     log_info "Starting TAPERC Public Gateway update procedure..."
 
     ensure_runtime_user
@@ -414,9 +514,9 @@ cmd_update() {
     # 3. Update virtualenv & dependencies
     setup_python_venv
 
-    # 4. Run tests
-    if ! run_tests; then
-        log_error "Tests failed after update! Initiating automatic rollback..."
+    # 4. Validate production runtime
+    if ! validate_production_runtime; then
+        log_error "Production runtime validation failed after update! Initiating automatic rollback..."
         if [[ -n "${backup_file}" ]]; then
             do_rollback "${backup_file}"
         fi
