@@ -2,7 +2,7 @@
 # AAIQ RELAY BOX PICO 2 W
 # -----------------------------------------------------------------------------
 # File        : main.py
-# Version     : 0.5.8
+# Version     : 0.5.10
 # Platform    : Raspberry Pi Pico 2 W / RP2350
 # Firmware    : MicroPython 1.29.0
 # Project     : AAIQ RELAY BOX PICO
@@ -66,7 +66,7 @@ if not hasattr(time, "ticks_diff"):
 if not hasattr(time, "sleep_ms"):
     time.sleep_ms = lambda ms: time.sleep(ms / 1000.0)
 
-FIRMWARE_VERSION = "0.5.8"
+FIRMWARE_VERSION = "0.5.10"
 API_VERSION = "v1"
 CONFIG_FILE = "config.json"
 CONFIG_VERSION = 2
@@ -1059,7 +1059,7 @@ def ota_fetch_release_info(url=None, timeout_s=8):
         else:
             header_bytes, _, body_bytes = res_bytes.partition(b"\n\n")
 
-        first_line = header_bytes.split(b"\n")[0].decode("latin1", "ignore")
+        first_line = header_bytes.split(b"\n")[0].decode("utf-8", "ignore")
         parts = first_line.split(" ")
         status_code = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
         if status_code != 200:
@@ -1109,7 +1109,7 @@ def ota_download_and_verify(download_url, expected_sha256=None, expected_size=No
         else:
             header_bytes, _, initial_body = header_data.partition(b"\n\n")
 
-        first_line = header_bytes.split(b"\n")[0].decode("latin1", "ignore")
+        first_line = header_bytes.split(b"\n")[0].decode("utf-8", "ignore")
         parts = first_line.split(" ")
         status_code = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
         if status_code != 200:
@@ -1117,7 +1117,7 @@ def ota_download_and_verify(download_url, expected_sha256=None, expected_size=No
             return False, "HTTP_STATUS_%d" % status_code
 
         content_length = None
-        for hline in header_bytes.decode("latin1", "ignore").split("\n"):
+        for hline in header_bytes.decode("utf-8", "ignore").split("\n"):
             if hline.lower().startswith("content-length:"):
                 try:
                     content_length = int(hline.split(":", 1)[1].strip())
@@ -1697,7 +1697,7 @@ PWA_MANIFEST = {
     ]
 }
 
-SW_JS = """const CACHE_NAME = 'tape-remote-v0.5.8';
+SW_JS = """const CACHE_NAME = 'tape-remote-v0.5.10';
 const STATIC_ASSETS = ['/', '/remote', '/manifest.json', '/icon.svg', '/icon-192.png', '/logo.png'];
 
 self.addEventListener('install', (e) => {
@@ -1909,6 +1909,10 @@ def stream_remote_page(sock, config=None):
                     line = line.replace("v0.5.7", "v" + str(FIRMWARE_VERSION))
                 elif "v0.5.8" in line and FIRMWARE_VERSION != "0.5.8":
                     line = line.replace("v0.5.8", "v" + str(FIRMWARE_VERSION))
+                elif "v0.5.9" in line and FIRMWARE_VERSION != "0.5.9":
+                    line = line.replace("v0.5.9", "v" + str(FIRMWARE_VERSION))
+                elif "v0.5.10" in line and FIRMWARE_VERSION != "0.5.10":
+                    line = line.replace("v0.5.10", "v" + str(FIRMWARE_VERSION))
                 if "duration_ms: 100" in line and pulse_ms != 100:
                     line = line.replace("duration_ms: 100", "duration_ms: %d" % pulse_ms)
                 elif "duration_ms: %d" in line:
@@ -1960,6 +1964,10 @@ def pr99_remote_page(config, relay=None, wifi=None):
                     line = line.replace("v0.5.7", "v" + str(FIRMWARE_VERSION))
                 elif "v0.5.8" in line and FIRMWARE_VERSION != "0.5.8":
                     line = line.replace("v0.5.8", "v" + str(FIRMWARE_VERSION))
+                elif "v0.5.9" in line and FIRMWARE_VERSION != "0.5.9":
+                    line = line.replace("v0.5.9", "v" + str(FIRMWARE_VERSION))
+                elif "v0.5.10" in line and FIRMWARE_VERSION != "0.5.10":
+                    line = line.replace("v0.5.10", "v" + str(FIRMWARE_VERSION))
                 if "duration_ms: 100" in line and pulse_ms != 100:
                     line = line.replace("duration_ms: 100", "duration_ms: %d" % pulse_ms)
                 elif "duration_ms: %d" in line:
@@ -2626,12 +2634,9 @@ def parse_request(sock):
         return None
 
     try:
-        text = data.decode("utf-8")
+        text = data.decode("utf-8", "ignore")
     except Exception:
-        try:
-            text = data.decode("latin1")
-        except Exception:
-            return None
+        return None
 
     if "\r\n\r\n" in text:
         header, sep, body = text.partition("\r\n\r\n")
@@ -2685,9 +2690,9 @@ def parse_request(sock):
             except Exception:
                 break
         try:
-            text = data.decode("utf-8")
+            text = data.decode("utf-8", "ignore")
         except Exception:
-            text = data.decode("latin1")
+            pass
         if "\r\n\r\n" in text:
             header, sep, body = text.partition("\r\n\r\n")
         else:
@@ -2875,7 +2880,7 @@ class HTTPServer:
             st_code = "200"
             if res_data and len(res_data) > 15:
                 try:
-                    first_line = res_data[:30].decode("latin1").split("\r\n")[0]
+                    first_line = res_data[:30].decode("utf-8", "ignore").split("\r\n")[0]
                     st_code = first_line.split(" ")[1]
                 except Exception:
                     pass
