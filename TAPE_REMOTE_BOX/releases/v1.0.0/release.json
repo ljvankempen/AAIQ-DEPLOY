@@ -1,13 +1,13 @@
 {
   "taperc_release_version": "v1.0.0",
-  "release_date": "2026-09-14 14:25:17",
+  "release_date": "2026-09-14 14:47:53",
   "created_by": "AAIQ Studio Release Orchestrator",
   "components": {
     "firmware": {
       "name": "TAPE Relay Box Firmware",
       "target_type": "TAPE_RELAY_BOX_FIRMWARE",
-      "version": "v0.5.7",
-      "relative_path": "TAPE_REMOTE_BOX/firmware/v0.5.7",
+      "version": "v0.5.8",
+      "relative_path": "TAPE_REMOTE_BOX/firmware/v0.5.8",
       "runtime_target": "Raspberry Pi Pico 2 W (RP2350)"
     },
     "gateway": {
