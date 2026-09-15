@@ -1,0 +1,38 @@
+[Unit]
+Description=TAPERC Public Gateway (AAIQ TAPE Remote Control Public Gateway)
+Documentation=https://taperc.aaiq.nl
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=aaiq
+Group=aaiq
+WorkingDirectory=/opt/aaiq/taperc/public-taperc
+Environment="PYTHONUNBUFFERED=1"
+Environment="PYTHONPATH=/opt/aaiq/taperc/public-taperc"
+EnvironmentFile=-/opt/aaiq/taperc/public-taperc/.env
+ExecStart=/opt/aaiq/taperc/public-taperc/.venv/bin/python -m src.server --config /opt/aaiq/taperc/public-taperc/config/config.json
+
+# Restart configuration
+Restart=always
+RestartSec=5s
+
+# Security and sandbox parameters
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+# Resource limits
+LimitNOFILE=65535
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=taperc-gateway
+
+[Install]
+WantedBy=multi-user.target

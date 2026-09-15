@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "device_name": "AAIQ Relay Box Pico",
+  "wifi": {
+    "ssid_enc": "",
+    "password_enc": ""
+  },
+  "pulse": {
+    "default_ms": 100
+  },
+  "led": {
+    "brightness": 25
+  }
+}

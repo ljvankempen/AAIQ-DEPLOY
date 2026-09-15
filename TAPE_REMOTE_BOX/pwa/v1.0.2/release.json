@@ -1,0 +1,36 @@
+﻿{
+    "size_bytes":  128722,
+    "zero_secrets":  true,
+    "filename":  "main.py",
+    "production_deployment_target":  "TAPERC Production VPS (https://taperc.aaiq.nl/)",
+    "version":  "0.5.15",
+    "release_date":  "2026-09-15 12:36:40",
+    "taperc_release_version":  "v1.0.2",
+    "sha256":  "ca9c3fc664eb977bef76110c52cf1a9eda9c7d4281e3ea177964fa4d21008727",
+    "components":  {
+                       "firmware":  {
+                                        "version":  "v0.5.15",
+                                        "name":  "TAPE Relay Box Firmware",
+                                        "runtime_target":  "Raspberry Pi Pico 2 W (RP2350)",
+                                        "relative_path":  "TAPE_REMOTE_BOX/firmware/v0.5.15",
+                                        "sha256":  "ca9c3fc664eb977bef76110c52cf1a9eda9c7d4281e3ea177964fa4d21008727",
+                                        "size_bytes":  128722,
+                                        "target_type":  "TAPE_RELAY_BOX_FIRMWARE"
+                                    },
+                       "gateway":  {
+                                       "runtime_target":  "Linux VPS (aiohttp / Caddy reverse proxy)",
+                                       "target_type":  "TAPERC_GATEWAY",
+                                       "name":  "TAPERC Gateway",
+                                       "version":  "v1.0.2",
+                                       "relative_path":  "TAPE_REMOTE_BOX/gateway/v1.0.2"
+                                   },
+                       "pwa":  {
+                                   "runtime_target":  "Browser / Mobile Single Page Application (static)",
+                                   "target_type":  "TAPE_REMOTE_PWA",
+                                   "name":  "TAPE Remote PWA",
+                                   "version":  "v1.0.2",
+                                   "relative_path":  "TAPE_REMOTE_BOX/pwa/v1.0.2"
+                               }
+                   },
+    "created_by":  "AAIQ Studio Release Orchestrator"
+}

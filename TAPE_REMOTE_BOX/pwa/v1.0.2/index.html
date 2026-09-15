@@ -1,0 +1,332 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <meta name="theme-color" content="#121217">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="TAPE Remote">
+  <meta name="application-name" content="TAPE Remote">
+  <title>AAIQ TAPE Remote</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/svg+xml" href="/images/icon.svg">
+  <link rel="alternate icon" type="image/png" href="/images/icon-192.png">
+  <link rel="apple-touch-icon" href="/images/icon.svg">
+  <link rel="apple-touch-icon" sizes="192x192" href="/images/icon-192.png">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <div class="brand-logo-container">
+      <img id="headerLogo" class="header-logo" src="/images/logo.png" alt="AAIQ TAPE Remote">
+      <div id="otaBadge" class="ota-badge" onclick="toggleOtaModal(true)" title="Firmware Update">v0.5.15 &#x2714;</div>
+    </div>
+    <div class="header-actions">
+      <div class="lang-container">
+        <button id="btnLang" class="btn-lang" onclick="toggleLangMenu()" aria-label="Language" title="Language">
+          <span id="langFlag">ðŸ‡¬ðŸ‡§</span> <span id="langCode">EN</span>
+        </button>
+        <div id="langMenu" class="dropdown-menu lang-dropdown">
+          <button class="dropdown-item" onclick="setLanguage('en'); toggleLangMenu(false);"><span class="lang-flag">&#x1F1EC;&#x1F1E7;</span> English (EN)</button>
+          <button class="dropdown-item" onclick="setLanguage('fr'); toggleLangMenu(false);"><span class="lang-flag">&#x1F1EB;&#x1F1F7;</span> FranÃ§ais (FR)</button>
+          <button class="dropdown-item" onclick="setLanguage('de'); toggleLangMenu(false);"><span class="lang-flag">&#x1F1E9;&#x1F1EA;</span> Deutsch (DE)</button>
+          <button class="dropdown-item" onclick="setLanguage('es'); toggleLangMenu(false);"><span class="lang-flag">&#x1F1EA;&#x1F1F8;</span> EspaÃ±ol (ES)</button>
+        </div>
+      </div>
+      <button id="btnInstall" class="btn-install" data-i18n="install_app" onclick="promptInstall()">Install App</button>
+      <button id="btnPower" class="btn-power-toggle off" onclick="togglePower()" title="Power" aria-label="Power">&#x23FB;</button>
+      <div class="menu-container">
+        <button id="btnMenu" class="btn-menu" onclick="toggleMenu()" aria-label="Menu" title="Menu">&#8942;</button>
+        <div id="dropdownMenu" class="dropdown-menu">
+          <button id="menuItemInstall" class="dropdown-item" data-i18n-menu="menu_install" data-icon="&#10515;" onclick="promptInstall(); toggleMenu(false);">&#10515; Install App</button>
+          <button id="menuItemRgb" class="dropdown-item" data-i18n-menu="menu_rgb" data-icon="&#x1F4A1;" onclick="toggleRgbModal(true); toggleMenu(false);">&#x1F4A1; RGB LED &amp; Helderheid</button>
+          <button id="menuItemIcons" class="dropdown-item" data-i18n-menu="menu_icons" data-icon="&#x1F4CB;" onclick="toggleIconModal(true); toggleMenu(false);">&#x1F4CB; Betekenis Iconen</button>
+          <button id="menuItemOta" class="dropdown-item" data-i18n-menu="menu_ota" data-icon="&#x2B06;" onclick="toggleOtaModal(true); toggleMenu(false);">&#x2B06; Firmware Update</button>
+          <a id="menuItemDiag" class="dropdown-item" data-i18n-menu="menu_diagnostics" data-icon="&#128295;" href="/diagnose">&#128295; Diagnose</a>
+          <button id="menuItemInfo" class="dropdown-item" data-i18n-menu="menu_info" data-icon="&#9432;" onclick="toggleInfoModal(true); toggleMenu(false);">&#9432; Info</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Deck View with Reels -->
+  <div class="deck-view">
+    <div class="reel-hub">
+      <div id="reelLeft" class="reel">
+        <div class="reel-center"></div>
+      </div>
+    </div>
+    <div class="reel-hub">
+      <div id="reelRight" class="reel">
+        <div class="reel-center"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Transport Grid -->
+  <div class="transport-section">
+    <div class="transport-grid">
+      <!-- ROW 1: REWIND, PLAY, FAST FORWARD -->
+      <button id="btn-r6" class="btn-t btn-rew" disabled onclick="handleTransport(6, 'REW', 'spinning-rev')">
+        <div class="led-indicator"></div>
+        <div class="btn-icon">&#9664;&#9664;</div>
+        <div class="btn-label">REW</div>
+      </button>
+      <button id="btn-r1" class="btn-t btn-play" disabled onclick="handleTransport(1, 'PLAY', 'spinning')">
+        <div class="led-indicator"></div>
+        <div class="btn-icon">&#9654;</div>
+        <div class="btn-label">PLAY</div>
+      </button>
+      <button id="btn-r5" class="btn-t btn-ff" disabled onclick="handleTransport(5, 'FF', 'spinning-fast')">
+        <div class="led-indicator"></div>
+        <div class="btn-icon">&#9654;&#9654;</div>
+        <div class="btn-label">FF</div>
+      </button>
+
+      <!-- ROW 2: RECORD, PAUSE, STOP -->
+      <button id="btn-r3" class="btn-t btn-rec" disabled onclick="handleTransport(3, 'RECORD', 'spinning')">
+        <div class="led-indicator"></div>
+        <div class="btn-icon">&#9679;</div>
+        <div class="btn-label">RECORD</div>
+      </button>
+      <button id="btn-r4" class="btn-t btn-pause" disabled onclick="handleTransport(4, 'PAUSE', null)">
+        <div class="led-indicator"></div>
+        <div class="btn-icon">&#10074;&#10074;</div>
+        <div class="btn-label">PAUSE</div>
+      </button>
+      <button id="btn-r2" class="btn-t btn-stop" disabled onclick="handleTransport(2, 'STOP', null)">
+        <div class="led-indicator"></div>
+        <div class="btn-icon">&#9632;</div>
+        <div class="btn-label">STOP</div>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- RGB LED Status & Dimmer Modal -->
+<div id="rgbLedModal" class="app-modal" onclick="if(event.target===this) toggleRgbModal(false)">
+  <div class="app-modal-content" style="max-width:390px;">
+    <div class="modal-header">
+      <h3 style="color:#38bdf8;font-size:16px;" data-i18n="rgb_title">&#x1F4A1; RGB LED Status &amp; Helderheid</h3>
+      <button class="modal-close" onclick="toggleRgbModal(false)">&times;</button>
+    </div>
+    
+    <!-- Dimmer Slider (Requirement 2) -->
+    <div class="slider-box">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-weight:700;font-size:13px;color:#f1f5f9;" data-i18n="rgb_brightness">LED Helderheid</span>
+        <span id="rgbDimmerVal" style="font-weight:700;font-size:14px;color:#38bdf8;font-family:monospace;">25%</span>
+      </div>
+      <input type="range" id="rgbDimmerSlider" min="0" max="100" value="25" class="rgb-slider" oninput="onRgbSliderChange(this.value)" onchange="saveRgbBrightness(this.value)">
+    </div>
+
+    <!-- Status Colors Table (Requirement 1) -->
+    <div style="font-size:12px;color:#94a3b8;font-weight:600;margin-top:2px;" data-i18n="rgb_guide_title">Statuskleuren en betekenis:</div>
+    <div class="led-guide-list">
+      <div class="led-guide-row">
+        <div class="led-dot green"></div>
+        <div data-i18n-html="rgb_green"><b>Groen (Vast):</b> Online &amp; Gereed / Power AAN / PLAY</div>
+      </div>
+      <div class="led-guide-row">
+        <div class="led-dot red"></div>
+        <div data-i18n-html="rgb_red"><b>Rood (Vast):</b> Standby / Power UIT / RECORD</div>
+      </div>
+      <div class="led-guide-row">
+        <div class="led-dot blue"></div>
+        <div data-i18n-html="rgb_blue"><b>Blauw (Vast):</b> STOP transport</div>
+      </div>
+      <div class="led-guide-row">
+        <div class="led-dot orange"></div>
+        <div data-i18n-html="rgb_orange"><b>Oranje (Vast):</b> PAUSE transport</div>
+      </div>
+      <div class="led-guide-row">
+        <div class="led-dot cyan"></div>
+        <div data-i18n-html="rgb_cyan"><b>Cyaan (Vast):</b> Fast Forward (FF)</div>
+      </div>
+      <div class="led-guide-row">
+        <div class="led-dot purple"></div>
+        <div data-i18n-html="rgb_purple"><b>Paars (Vast):</b> Rewind (REW) / Firmware Update (OTA)</div>
+      </div>
+      <div class="led-guide-row">
+        <div class="led-dot yellow"></div>
+        <div data-i18n-html="rgb_yellow"><b>Geel (Vast):</b> Opstarten / Wi-Fi verbinden / Testmodus</div>
+      </div>
+      <div class="led-guide-row">
+        <div class="led-dot blink-red"></div>
+        <div data-i18n-html="rgb_blink_red"><b>Rood knipperend (500ms):</b> Fout / Storing</div>
+      </div>
+      <div class="led-guide-row">
+        <div class="led-dot blink-blue"></div>
+        <div data-i18n-html="rgb_blink_blue"><b>Blauw knipperend (500ms):</b> Wi-Fi Setup Modus (Access Point)</div>
+      </div>
+      <div class="led-guide-row">
+        <div class="led-dot white"></div>
+        <div data-i18n-html="rgb_white"><b>Wit flits (150ms):</b> Commando ontvangen</div>
+      </div>
+    </div>
+    
+    <button class="btn-modal-action" data-i18n="close" onclick="toggleRgbModal(false)" style="background:#475569;margin-top:4px;">Sluiten</button>
+  </div>
+</div>
+
+<!-- PWA Iconen Informatiescherm Modal (Requirement 3) -->
+<div id="pwaIconModal" class="app-modal" onclick="if(event.target===this) toggleIconModal(false)">
+  <div class="app-modal-content" style="max-width:400px;">
+    <div class="modal-header">
+      <h3 style="color:#38bdf8;font-size:16px;" data-i18n="icon_title">&#x1F4CB; Betekenis PWA Iconen</h3>
+      <button class="modal-close" onclick="toggleIconModal(false)">&times;</button>
+    </div>
+    
+    <div class="icon-guide-list">
+      <div class="icon-guide-section-title" data-i18n="icon_sec_header">Header &amp; Bediening</div>
+      <div class="icon-guide-row">
+        <div class="icon-symbol-box">&#x23FB;</div>
+        <div class="icon-guide-desc">
+          <span class="icon-guide-name" data-i18n="icon_power_title">Power</span>
+          <span class="icon-guide-text" data-i18n="icon_power_desc">Hoofdschakelaar (Relais 8 - Power ON / Standby)</span>
+        </div>
+      </div>
+      <div class="icon-guide-row">
+        <div class="icon-symbol-box" style="color:#4ade80;">&#x2714; / &#x2B06;</div>
+        <div class="icon-guide-desc">
+          <span class="icon-guide-name" data-i18n="icon_ota_title">OTA Badge</span>
+          <span class="icon-guide-text" data-i18n="icon_ota_desc">Firmware status (Up-to-date, Update beschikbaar, Server offline)</span>
+        </div>
+      </div>
+      <div class="icon-guide-row">
+        <div class="icon-symbol-box">&#128242;</div>
+        <div class="icon-guide-desc">
+          <span class="icon-guide-name" data-i18n="icon_install_title">Install App</span>
+          <span class="icon-guide-text" data-i18n="icon_install_desc">PWA installeren op startscherm of desktop</span>
+        </div>
+      </div>
+      <div class="icon-guide-row">
+        <div class="icon-symbol-box">&#8942;</div>
+        <div class="icon-guide-desc">
+          <span class="icon-guide-name" data-i18n="icon_menu_title">Menu</span>
+          <span class="icon-guide-text" data-i18n="icon_menu_desc">Toegang tot instellingen, LED dimmer, iconen en diagnose</span>
+        </div>
+      </div>
+
+      <div class="icon-guide-section-title" data-i18n="icon_sec_transport">Transport Functies</div>
+      <div class="icon-guide-row">
+        <div class="icon-symbol-box" style="color:#22c55e;">&#9654;</div>
+        <div class="icon-guide-desc">
+          <span class="icon-guide-name" data-i18n="icon_play_title">PLAY (R1)</span>
+          <span class="icon-guide-text" data-i18n="icon_play_desc">Afspelen tape starten</span>
+        </div>
+      </div>
+      <div class="icon-guide-row">
+        <div class="icon-symbol-box" style="color:#94a3b8;">&#9632;</div>
+        <div class="icon-guide-desc">
+          <span class="icon-guide-name" data-i18n="icon_stop_title">STOP (R2)</span>
+          <span class="icon-guide-text" data-i18n="icon_stop_desc">Bandtransport stoppen</span>
+        </div>
+      </div>
+      <div class="icon-guide-row">
+        <div class="icon-symbol-box" style="color:#ef4444;">&#9679;</div>
+        <div class="icon-guide-desc">
+          <span class="icon-guide-name" data-i18n="icon_rec_title">RECORD (R3)</span>
+          <span class="icon-guide-text" data-i18n="icon_rec_desc">Opnamemodus activeren</span>
+        </div>
+      </div>
+      <div class="icon-guide-row">
+        <div class="icon-symbol-box" style="color:#f59e0b;">&#10074;&#10074;</div>
+        <div class="icon-guide-desc">
+          <span class="icon-guide-name" data-i18n="icon_pause_title">PAUSE (R4)</span>
+          <span class="icon-guide-text" data-i18n="icon_pause_desc">Pauzeren / opname pauzeren</span>
+        </div>
+      </div>
+      <div class="icon-guide-row">
+        <div class="icon-symbol-box" style="color:#38bdf8;">&#9654;&#9654;</div>
+        <div class="icon-guide-desc">
+          <span class="icon-guide-name" data-i18n="icon_ff_title">FF (R5)</span>
+          <span class="icon-guide-text" data-i18n="icon_ff_desc">Snel vooruitspoelen</span>
+        </div>
+      </div>
+      <div class="icon-guide-row">
+        <div class="icon-symbol-box" style="color:#a855f7;">&#9664;&#9664;</div>
+        <div class="icon-guide-desc">
+          <span class="icon-guide-name" data-i18n="icon_rew_title">REW (R6)</span>
+          <span class="icon-guide-text" data-i18n="icon_rew_desc">Snel terugspoelen</span>
+        </div>
+      </div>
+
+      <div class="icon-guide-section-title" data-i18n="icon_sec_visual">Visuele Indicaties</div>
+      <div class="icon-guide-row">
+        <div class="icon-symbol-box">&#9678;</div>
+        <div class="icon-guide-desc">
+          <span class="icon-guide-name" data-i18n="icon_reels_title">Draaiende Spoelen</span>
+          <span class="icon-guide-text" data-i18n="icon_reels_desc">Visuele feedback van looprichting en snelheid</span>
+        </div>
+      </div>
+    </div>
+    
+    <button class="btn-modal-action" data-i18n="close" onclick="toggleIconModal(false)" style="background:#475569;margin-top:4px;">Sluiten</button>
+  </div>
+</div>
+
+<!-- Info Modal -->
+<div id="infoModal" class="app-modal" onclick="if(event.target===this) toggleInfoModal(false)">
+  <div class="app-modal-content">
+    <div class="modal-header">
+      <h3 style="color:#38bdf8;font-size:16px;" data-i18n="info_title">Info</h3>
+      <button class="modal-close" onclick="toggleInfoModal(false)">&times;</button>
+    </div>
+    <div class="info-list">
+      <div class="info-row"><span class="info-label" data-i18n="info_app">App</span><span class="info-val">AAIQ TAPE Remote PWA</span></div>
+      <div class="info-row"><span class="info-label" data-i18n="info_version">Versie</span><span class="info-val">v1.0.2</span></div>
+      <div class="info-row"><span class="info-label" data-i18n="info_gateway">Gateway</span><span class="info-val">taperc.aaiq.nl</span></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="btn-modal-action" style="background:#334155;font-size:11px;padding:6px 10px;" data-i18n="btn_rgb" onclick="toggleRgbModal(true); toggleInfoModal(false);">&#x1F4A1; RGB LED</button>
+      <button class="btn-modal-action" style="background:#334155;font-size:11px;padding:6px 10px;" data-i18n="btn_icons" onclick="toggleIconModal(true); toggleInfoModal(false);">&#x1F4CB; Iconen</button>
+      <button class="btn-modal-action" style="background:#475569;font-size:11px;padding:6px 10px;margin-left:auto;" data-i18n="close" onclick="toggleInfoModal(false)">Sluiten</button>
+    </div>
+  </div>
+</div>
+
+<!-- OTA Modal -->
+<div id="otaModal" class="app-modal" onclick="if(event.target===this) toggleOtaModal(false)">
+  <div class="app-modal-content" style="max-width:390px;">
+    <div class="modal-header">
+      <h3 style="color:#38bdf8;font-size:16px;" data-i18n="ota_title">&#x2B06; Firmware Update (OTA)</h3>
+      <button class="modal-close" onclick="toggleOtaModal(false)">&times;</button>
+    </div>
+    <div class="info-list">
+      <div class="info-row"><span class="info-label" data-i18n="ota_current_ver">Huidige Versie</span><span id="otaCurrentVer" class="info-val">v0.5.15</span></div>
+      <div class="info-row"><span class="info-label" data-i18n="ota_avail_ver">Beschikbare Versie</span><span id="otaAvailVer" class="info-val">-</span></div>
+      <div class="info-row"><span class="info-label" data-i18n="ota_status">Status</span><span id="otaStatusText" class="info-val" style="font-size:12px;" data-i18n="ota_status_checking">Controleren...</span></div>
+      <div class="info-row" id="rowOtaSha" style="display:none;"><span class="info-label">SHA-256</span><span id="otaSha" class="info-val" style="font-size:10px;word-break:break-all;">-</span></div>
+    </div>
+    <div id="otaActionArea" style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;">
+      <button class="btn-modal-action" style="background:#334155;" data-i18n="ota_btn_check" onclick="triggerOtaCheck()">&#x21bb; Controleren</button>
+      <button id="btnOtaInstall" class="btn-modal-action" style="display:none;background:#16a34a;" data-i18n="ota_btn_install" onclick="confirmAndInstallOta()">Nu Installeren</button>
+    </div>
+    <div id="otaProgress" style="display:none;color:#90e0ef;font-size:12px;text-align:center;padding:8px 0;">
+      <span id="otaProgressText" data-i18n="ota_progress">Firmware veilig downloaden en SHA-256 verifiÃ«ren...</span>
+    </div>
+    <button class="btn-modal-action" data-i18n="close" onclick="toggleOtaModal(false)" style="background:#475569;margin-top:4px;">Sluiten</button>
+  </div>
+</div>
+
+<!-- iOS PWA Install Modal -->
+<div id="iosModal" class="ios-modal" onclick="if(event.target===this) toggleIosModal(false)">
+  <div class="ios-modal-content">
+    <h3 id="iosModalTitle" data-i18n="ios_title">Installatie op iPhone / iPad</h3>
+    <div id="iosModalBody">
+      <p>Open in Safari en kies Share &rarr; Add to Home Screen.</p>
+    </div>
+    <button data-i18n="ios_btn_ok" onclick="toggleIosModal(false)">Begrepen</button>
+  </div>
+</div>
+
+<script src="/js/app.js"></script>
+</body>
+</html>
+
